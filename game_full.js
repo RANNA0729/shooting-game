@@ -14,7 +14,7 @@ class Game {
         this.score = 0;
         this.lives = 10;
         this.stage = 1;
-        this.gameState = 'playing'; // playing, gameOver, victory
+        this.gameState = 'playing';
         
         this.boss = null;
         this.finalBoss = null;
@@ -28,20 +28,14 @@ class Game {
         this.loadImages();
         
         this.setupEventListeners();
-        this.spawnEnemies();
         this.gameLoop();
+        
+        console.log('Full game initialized!');
     }
     
     loadImages() {
-        this.images.boss = new Image();
-        this.images.boss.onload = () => console.log('Boss image loaded successfully');
-        this.images.boss.onerror = () => console.error('Failed to load boss image');
-        this.images.boss.src = 'boss.png';
-        
-        this.images.finalBoss = new Image();
-        this.images.finalBoss.onload = () => console.log('Final boss image loaded successfully');
-        this.images.finalBoss.onerror = () => console.error('Failed to load final boss image');
-        this.images.finalBoss.src = 'boss2.png';
+        // 画像読み込みを無効化（404エラー回避）
+        console.log('Image loading disabled - using graphics instead');
     }
     
     setupEventListeners() {
@@ -58,20 +52,23 @@ class Game {
     }
     
     spawnEnemies() {
-        if (this.stage === 1 && this.score >= 10 && !this.boss) {
+        // ボス出現（スコア200で）
+        if (this.stage === 1 && this.score >= 200 && !this.boss) {
             this.boss = new Boss(this.width / 2, 100);
             this.stage = 2;
             console.log('Boss spawned!');
             return;
         }
         
-        if (this.stage === 2 && this.score >= 30 && !this.finalBoss) {
+        // ラスボス出現（スコア500で）
+        if (this.stage === 2 && this.score >= 500 && !this.finalBoss) {
             this.finalBoss = new FinalBoss(this.width / 2, 100);
             this.stage = 3;
             console.log('Final Boss spawned!');
             return;
         }
         
+        // 通常の敵
         if (this.stage <= 2 && (!this.boss || !this.boss.isDead) && 
             Date.now() - this.gameStartTime > 2000 && 
             Date.now() - this.lastEnemySpawn > this.enemySpawnRate) {
@@ -85,18 +82,23 @@ class Game {
         
         this.player.update(this.keys);
         
+        // 弾の更新
         this.bullets.forEach(bullet => bullet.update());
         this.bullets = this.bullets.filter(bullet => bullet.y > -10);
         
+        // 敵の更新
         this.enemies.forEach(enemy => enemy.update());
         this.enemies = this.enemies.filter(enemy => enemy.y < this.height + 40);
         
+        // 敵の弾の更新
         this.enemyBullets.forEach(bullet => bullet.update());
         this.enemyBullets = this.enemyBullets.filter(bullet => bullet.y < this.height + 10);
         
+        // パーティクルの更新
         this.particles.forEach(particle => particle.update());
         this.particles = this.particles.filter(particle => particle.life > 0);
         
+        // ボスの更新
         if (this.boss) {
             this.boss.update();
             if (this.boss.canShoot()) {
@@ -104,6 +106,7 @@ class Game {
             }
         }
         
+        // ラスボスの更新
         if (this.finalBoss) {
             this.finalBoss.update();
             if (this.finalBoss.canShoot()) {
@@ -111,10 +114,12 @@ class Game {
             }
         }
         
+        // プレイヤーの射撃
         if (this.keys['Space'] && this.player.canShoot()) {
             this.bullets.push(this.player.shoot());
         }
         
+        // 敵の射撃
         this.enemies.forEach(enemy => {
             if (enemy.canShoot()) {
                 this.enemyBullets.push(enemy.shoot());
@@ -127,6 +132,7 @@ class Game {
     }
     
     checkCollisions() {
+        // プレイヤーの弾 vs 敵
         this.bullets.forEach((bullet, bulletIndex) => {
             this.enemies.forEach((enemy, enemyIndex) => {
                 if (this.isColliding(bullet, enemy)) {
@@ -137,6 +143,7 @@ class Game {
                 }
             });
             
+            // プレイヤーの弾 vs ボス
             if (this.boss && this.isColliding(bullet, this.boss)) {
                 this.bullets.splice(bulletIndex, 1);
                 this.boss.takeDamage();
@@ -147,6 +154,7 @@ class Game {
                 }
             }
             
+            // プレイヤーの弾 vs ラスボス
             if (this.finalBoss && this.isColliding(bullet, this.finalBoss)) {
                 this.bullets.splice(bulletIndex, 1);
                 this.finalBoss.takeDamage();
@@ -160,6 +168,7 @@ class Game {
             }
         });
         
+        // 敵の弾 vs プレイヤー
         this.enemyBullets.forEach((bullet, bulletIndex) => {
             if (this.isColliding(bullet, this.player)) {
                 this.enemyBullets.splice(bulletIndex, 1);
@@ -172,6 +181,7 @@ class Game {
             }
         });
         
+        // 敵 vs プレイヤー
         this.enemies.forEach((enemy, enemyIndex) => {
             if (this.isColliding(enemy, this.player)) {
                 this.enemies.splice(enemyIndex, 1);
@@ -209,12 +219,10 @@ class Game {
         
         if (this.boss) {
             this.boss.render(this.ctx);
-            console.log('Boss rendering, health:', this.boss.health);
         }
         
         if (this.finalBoss) {
             this.finalBoss.render(this.ctx);
-            console.log('Final boss rendering, health:', this.finalBoss.health);
         }
     }
     
@@ -367,17 +375,18 @@ class Boss {
     }
     
     render(ctx) {
-        const game = window.game;
-        if (game && game.images.boss.complete) {
-            ctx.drawImage(game.images.boss, this.x, this.y, this.width, this.height);
-        } else {
-            ctx.fillStyle = '#ff6600';
-            ctx.fillRect(this.x, this.y, this.width, this.height);
-            
-            ctx.fillStyle = '#ff0000';
-            ctx.fillRect(this.x + 10, this.y + 10, 15, 15);
-            ctx.fillRect(this.x + 55, this.y + 10, 15, 15);
-        }
+        // ボスの描画（画像なし）
+        ctx.fillStyle = '#ff6600';
+        ctx.fillRect(this.x, this.y, this.width, this.height);
+        
+        ctx.fillStyle = '#ff0000';
+        ctx.fillRect(this.x + 10, this.y + 10, 15, 15);
+        ctx.fillRect(this.x + 55, this.y + 10, 15, 15);
+        
+        // ボスの目
+        ctx.fillStyle = '#ffff00';
+        ctx.fillRect(this.x + 15, this.y + 15, 8, 8);
+        ctx.fillRect(this.x + 57, this.y + 15, 8, 8);
         
         const healthBarWidth = 60;
         const healthPercentage = this.health / this.maxHealth;
@@ -444,18 +453,20 @@ class FinalBoss {
     }
     
     render(ctx) {
-        const game = window.game;
-        if (game && game.images.finalBoss.complete) {
-            ctx.drawImage(game.images.finalBoss, this.x, this.y, this.width, this.height);
-        } else {
-            ctx.fillStyle = '#8800ff';
-            ctx.fillRect(this.x, this.y, this.width, this.height);
-            
-            ctx.fillStyle = '#ff0088';
-            ctx.fillRect(this.x + 20, this.y + 15, 20, 20);
-            ctx.fillRect(this.x + 80, this.y + 15, 20, 20);
-            ctx.fillRect(this.x + 50, this.y + 30, 20, 20);
-        }
+        // ラスボスの描画（画像なし）
+        ctx.fillStyle = '#8800ff';
+        ctx.fillRect(this.x, this.y, this.width, this.height);
+        
+        ctx.fillStyle = '#ff0088';
+        ctx.fillRect(this.x + 20, this.y + 15, 20, 20);
+        ctx.fillRect(this.x + 80, this.y + 15, 20, 20);
+        ctx.fillRect(this.x + 50, this.y + 30, 20, 20);
+        
+        // ラスボスの装飾
+        ctx.fillStyle = '#ffff00';
+        ctx.fillRect(this.x + 25, this.y + 20, 10, 10);
+        ctx.fillRect(this.x + 85, this.y + 20, 10, 10);
+        ctx.fillRect(this.x + 55, this.y + 35, 10, 10);
         
         const healthBarWidth = 100;
         const healthPercentage = this.health / this.maxHealth;
