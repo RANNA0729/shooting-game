@@ -76,6 +76,26 @@
         <div style="font-size: 24px; margin-top: 20px;">おめでとうございます！</div>
     </div>
     
-    <script src="game_full.js"></script>
+    <script>
+        // ブラウザキャッシュを強制クリア
+        console.log('🧹 Cache clearing script loaded');
+        
+        // JavaScriptファイルをキャッシュバスターで読み込み
+        const script = document.createElement('script');
+        script.src = `game_deploy.js?v=${Date.now()}`;
+        script.onload = () => console.log('✅ Deploy script loaded with cache buster');
+        script.onerror = () => console.error('❌ Failed to load game script');
+        document.head.appendChild(script);
+        
+        // Service Workerをクリア
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistrations().then(function(registrations) {
+                for(let registration of registrations) {
+                    registration.unregister();
+                    console.log('🗑️ Service worker unregistered');
+                }
+            });
+        }
+    </script>
 </body>
 </html>

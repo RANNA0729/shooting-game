@@ -24,25 +24,75 @@ class Game {
         this.lastEnemySpawn = Date.now();
         this.enemySpawnRate = 3000;
         
+        // 画像読み込み - デプロイ対応
         this.images = {};
+        this.imagesLoaded = 0;
+        this.totalImages = 2;
         this.loadImages();
         
         this.setupEventListeners();
         this.gameLoop();
         
-        console.log('Full game initialized!');
+        console.log('🚀 Game initialized for deployment!');
     }
     
     loadImages() {
-        this.images.boss = new Image();
-        this.images.boss.onload = () => console.log('Boss image loaded successfully');
-        this.images.boss.onerror = () => console.error('Failed to load boss image');
-        this.images.boss.src = 'boss.png';
+        // デプロイ環境での画像読み込み
+        const baseUrl = window.location.origin + window.location.pathname.replace('index.html', '');
+        console.log('🌐 Base URL:', baseUrl);
         
-        this.images.finalBoss = new Image();
-        this.images.finalBoss.onload = () => console.log('Final boss image loaded successfully');
-        this.images.finalBoss.onerror = () => console.error('Failed to load final boss image');
-        this.images.finalBoss.src = 'boss2.png';
+        // ボス画像の読み込み
+        this.loadImageWithFallback('boss', [
+            'boss.png',
+            './boss.png', 
+            baseUrl + 'boss.png',
+            window.location.origin + '/boss.png'
+        ]);
+        
+        // ラスボス画像の読み込み
+        this.loadImageWithFallback('finalBoss', [
+            'boss2.png',
+            './boss2.png',
+            baseUrl + 'boss2.png', 
+            window.location.origin + '/boss2.png'
+        ]);
+    }
+    
+    loadImageWithFallback(imageKey, urls) {
+        if (urls.length === 0) {
+            console.error(`❌ All URLs failed for ${imageKey}`);
+            this.imagesLoaded++;
+            return;
+        }
+        
+        const url = urls.shift();
+        console.log(`🔄 Trying ${imageKey} from:`, url);
+        
+        const img = new Image();
+        img.crossOrigin = 'anonymous'; // CORS対応
+        
+        img.onload = () => {
+            console.log(`✅ ${imageKey} loaded from:`, url);
+            this.images[imageKey] = img;
+            this.imagesLoaded++;
+        };
+        
+        img.onerror = (e) => {
+            console.warn(`⚠️ ${imageKey} failed from:`, url);
+            // 次のURLを試行
+            setTimeout(() => this.loadImageWithFallback(imageKey, urls), 100);
+        };
+        
+        img.src = url;
+        
+        // タイムアウト処理
+        setTimeout(() => {
+            if (!img.complete) {
+                console.warn(`⏰ ${imageKey} timeout from:`, url);
+                img.src = ''; // 読み込み停止
+                this.loadImageWithFallback(imageKey, urls);
+            }
+        }, 5000);
     }
     
     setupEventListeners() {
@@ -61,17 +111,17 @@ class Game {
     spawnEnemies() {
         // ボス出現（スコア200で）
         if (this.stage === 1 && this.score >= 200 && !this.boss) {
-            this.boss = new Boss(this.width / 2, 100);
+            this.boss = new Boss(this.width / 2, 100, this.images.boss);
             this.stage = 2;
-            console.log('Boss spawned!');
+            console.log('🔥 Boss spawned at score:', this.score);
             return;
         }
         
         // ラスボス出現（スコア500で）
         if (this.stage === 2 && this.score >= 500 && !this.finalBoss) {
-            this.finalBoss = new FinalBoss(this.width / 2, 100);
+            this.finalBoss = new FinalBoss(this.width / 2, 100, this.images.finalBoss);
             this.stage = 3;
-            console.log('Final Boss spawned!');
+            console.log('💀 Final Boss spawned at score:', this.score);
             return;
         }
         
@@ -340,7 +390,7 @@ class Enemy {
 }
 
 class Boss {
-    constructor(x, y) {
+    constructor(x, y, image) {
         this.x = x;
         this.y = y;
         this.width = 80;
@@ -352,6 +402,7 @@ class Boss {
         this.lastShot = 0;
         this.shootCooldown = 1500;
         this.isDead = false;
+        this.image = image;
     }
     
     update() {
@@ -382,18 +433,34 @@ class Boss {
     }
     
     render(ctx) {
-        const game = window.game;
-        if (game && game.images.boss && game.images.boss.complete) {
-            ctx.drawImage(game.images.boss, this.x, this.y, this.width, this.height);
+        // デプロイ環境対応の画像表示
+        if (this.image && this.image.complete && this.image.naturalWidth > 0 && this.image.naturalHeight > 0) {
+            try {
+                ctx.drawImage(this.image, this.x, this.y, this.width, this.height);
+                console.log('🖼️ Boss image rendered successfully');
+            } catch (e) {
+                console.warn('⚠️ Boss image render failed:', e);
+                this.renderFallback(ctx);
+            }
         } else {
-            ctx.fillStyle = '#ff6600';
-            ctx.fillRect(this.x, this.y, this.width, this.height);
-            
-            ctx.fillStyle = '#ff0000';
-            ctx.fillRect(this.x + 10, this.y + 10, 15, 15);
-            ctx.fillRect(this.x + 55, this.y + 10, 15, 15);
+            console.log('⬜ Boss using fallback graphics');
+            this.renderFallback(ctx);
         }
         
+        // HPバー
+        this.renderHealthBar(ctx);
+    }
+    
+    renderFallback(ctx) {
+        ctx.fillStyle = '#ff6600';
+        ctx.fillRect(this.x, this.y, this.width, this.height);
+        
+        ctx.fillStyle = '#ff0000';
+        ctx.fillRect(this.x + 10, this.y + 10, 15, 15);
+        ctx.fillRect(this.x + 55, this.y + 10, 15, 15);
+    }
+    
+    renderHealthBar(ctx) {
         const healthBarWidth = 60;
         const healthPercentage = this.health / this.maxHealth;
         ctx.fillStyle = '#333';
@@ -404,7 +471,7 @@ class Boss {
 }
 
 class FinalBoss {
-    constructor(x, y) {
+    constructor(x, y, image) {
         this.x = x;
         this.y = y;
         this.width = 120;
@@ -417,6 +484,7 @@ class FinalBoss {
         this.shootCooldown = 1200;
         this.isDead = false;
         this.attackPattern = 0;
+        this.image = image;
     }
     
     update() {
@@ -459,19 +527,35 @@ class FinalBoss {
     }
     
     render(ctx) {
-        const game = window.game;
-        if (game && game.images.finalBoss && game.images.finalBoss.complete) {
-            ctx.drawImage(game.images.finalBoss, this.x, this.y, this.width, this.height);
+        // デプロイ環境対応の画像表示
+        if (this.image && this.image.complete && this.image.naturalWidth > 0 && this.image.naturalHeight > 0) {
+            try {
+                ctx.drawImage(this.image, this.x, this.y, this.width, this.height);
+                console.log('🖼️ Final boss image rendered successfully');
+            } catch (e) {
+                console.warn('⚠️ Final boss image render failed:', e);
+                this.renderFallback(ctx);
+            }
         } else {
-            ctx.fillStyle = '#8800ff';
-            ctx.fillRect(this.x, this.y, this.width, this.height);
-            
-            ctx.fillStyle = '#ff0088';
-            ctx.fillRect(this.x + 20, this.y + 15, 20, 20);
-            ctx.fillRect(this.x + 80, this.y + 15, 20, 20);
-            ctx.fillRect(this.x + 50, this.y + 30, 20, 20);
+            console.log('⬜ Final boss using fallback graphics');
+            this.renderFallback(ctx);
         }
         
+        // HPバー
+        this.renderHealthBar(ctx);
+    }
+    
+    renderFallback(ctx) {
+        ctx.fillStyle = '#8800ff';
+        ctx.fillRect(this.x, this.y, this.width, this.height);
+        
+        ctx.fillStyle = '#ff0088';
+        ctx.fillRect(this.x + 20, this.y + 15, 20, 20);
+        ctx.fillRect(this.x + 80, this.y + 15, 20, 20);
+        ctx.fillRect(this.x + 50, this.y + 30, 20, 20);
+    }
+    
+    renderHealthBar(ctx) {
         const healthBarWidth = 100;
         const healthPercentage = this.health / this.maxHealth;
         ctx.fillStyle = '#333';
@@ -548,5 +632,5 @@ class Particle {
     }
 }
 
+// ゲーム開始
 const game = new Game();
-window.game = game;

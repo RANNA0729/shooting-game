@@ -24,25 +24,56 @@ class Game {
         this.lastEnemySpawn = Date.now();
         this.enemySpawnRate = 3000;
         
+        // 画像読み込み
         this.images = {};
+        this.imagesLoaded = 0;
+        this.totalImages = 2;
         this.loadImages();
         
         this.setupEventListeners();
         this.gameLoop();
         
-        console.log('Full game initialized!');
+        console.log('🎮 Game initialized with image loading!');
     }
     
     loadImages() {
-        this.images.boss = new Image();
-        this.images.boss.onload = () => console.log('Boss image loaded successfully');
-        this.images.boss.onerror = () => console.error('Failed to load boss image');
-        this.images.boss.src = 'boss.png';
+        // キャッシュバスター用のタイムスタンプ
+        const cacheBuster = Date.now();
+        console.log('🔄 Loading images with cache buster:', cacheBuster);
         
+        // ボス画像
+        this.images.boss = new Image();
+        this.images.boss.onload = () => {
+            console.log('✅ Boss image loaded successfully with cache buster');
+            this.imagesLoaded++;
+        };
+        this.images.boss.onerror = (e) => {
+            console.error('❌ Failed to load boss image:', e);
+            console.error('❌ Boss image URL:', this.images.boss.src);
+            this.imagesLoaded++;
+        };
+        this.images.boss.src = `boss.png?v=${cacheBuster}`;
+        
+        // ラスボス画像
         this.images.finalBoss = new Image();
-        this.images.finalBoss.onload = () => console.log('Final boss image loaded successfully');
-        this.images.finalBoss.onerror = () => console.error('Failed to load final boss image');
-        this.images.finalBoss.src = 'boss2.png';
+        this.images.finalBoss.onload = () => {
+            console.log('✅ Final boss image loaded successfully with cache buster');
+            this.imagesLoaded++;
+        };
+        this.images.finalBoss.onerror = (e) => {
+            console.error('❌ Failed to load final boss image:', e);
+            console.error('❌ Final boss image URL:', this.images.finalBoss.src);
+            this.imagesLoaded++;
+        };
+        this.images.finalBoss.src = `boss2.png?v=${cacheBuster}`;
+        
+        // 画像読み込み状況をログ出力
+        setTimeout(() => {
+            console.log(`📊 Images loaded: ${this.imagesLoaded}/${this.totalImages}`);
+            if (this.imagesLoaded === this.totalImages) {
+                console.log('🎉 All images loaded successfully!');
+            }
+        }, 2000);
     }
     
     setupEventListeners() {
@@ -61,17 +92,17 @@ class Game {
     spawnEnemies() {
         // ボス出現（スコア200で）
         if (this.stage === 1 && this.score >= 200 && !this.boss) {
-            this.boss = new Boss(this.width / 2, 100);
+            this.boss = new Boss(this.width / 2, 100, this.images.boss);
             this.stage = 2;
-            console.log('Boss spawned!');
+            console.log('🔥 Boss spawned at score:', this.score);
             return;
         }
         
         // ラスボス出現（スコア500で）
         if (this.stage === 2 && this.score >= 500 && !this.finalBoss) {
-            this.finalBoss = new FinalBoss(this.width / 2, 100);
+            this.finalBoss = new FinalBoss(this.width / 2, 100, this.images.finalBoss);
             this.stage = 3;
-            console.log('Final Boss spawned!');
+            console.log('💀 Final Boss spawned at score:', this.score);
             return;
         }
         
@@ -340,7 +371,7 @@ class Enemy {
 }
 
 class Boss {
-    constructor(x, y) {
+    constructor(x, y, image) {
         this.x = x;
         this.y = y;
         this.width = 80;
@@ -352,6 +383,7 @@ class Boss {
         this.lastShot = 0;
         this.shootCooldown = 1500;
         this.isDead = false;
+        this.image = image;
     }
     
     update() {
@@ -382,10 +414,12 @@ class Boss {
     }
     
     render(ctx) {
-        const game = window.game;
-        if (game && game.images.boss && game.images.boss.complete) {
-            ctx.drawImage(game.images.boss, this.x, this.y, this.width, this.height);
+        // 画像が読み込まれていれば画像を表示、そうでなければ図形を表示
+        if (this.image && this.image.complete && this.image.naturalWidth > 0) {
+            console.log('🖼️ Drawing boss image');
+            ctx.drawImage(this.image, this.x, this.y, this.width, this.height);
         } else {
+            console.log('⬜ Drawing boss rectangle (image not loaded)');
             ctx.fillStyle = '#ff6600';
             ctx.fillRect(this.x, this.y, this.width, this.height);
             
@@ -394,6 +428,7 @@ class Boss {
             ctx.fillRect(this.x + 55, this.y + 10, 15, 15);
         }
         
+        // HPバー
         const healthBarWidth = 60;
         const healthPercentage = this.health / this.maxHealth;
         ctx.fillStyle = '#333';
@@ -404,7 +439,7 @@ class Boss {
 }
 
 class FinalBoss {
-    constructor(x, y) {
+    constructor(x, y, image) {
         this.x = x;
         this.y = y;
         this.width = 120;
@@ -417,6 +452,7 @@ class FinalBoss {
         this.shootCooldown = 1200;
         this.isDead = false;
         this.attackPattern = 0;
+        this.image = image;
     }
     
     update() {
@@ -459,10 +495,12 @@ class FinalBoss {
     }
     
     render(ctx) {
-        const game = window.game;
-        if (game && game.images.finalBoss && game.images.finalBoss.complete) {
-            ctx.drawImage(game.images.finalBoss, this.x, this.y, this.width, this.height);
+        // 画像が読み込まれていれば画像を表示、そうでなければ図形を表示
+        if (this.image && this.image.complete && this.image.naturalWidth > 0) {
+            console.log('🖼️ Drawing final boss image');
+            ctx.drawImage(this.image, this.x, this.y, this.width, this.height);
         } else {
+            console.log('⬜ Drawing final boss rectangle (image not loaded)');
             ctx.fillStyle = '#8800ff';
             ctx.fillRect(this.x, this.y, this.width, this.height);
             
@@ -472,6 +510,7 @@ class FinalBoss {
             ctx.fillRect(this.x + 50, this.y + 30, 20, 20);
         }
         
+        // HPバー
         const healthBarWidth = 100;
         const healthPercentage = this.health / this.maxHealth;
         ctx.fillStyle = '#333';
@@ -548,5 +587,5 @@ class Particle {
     }
 }
 
+// ゲーム開始
 const game = new Game();
-window.game = game;
