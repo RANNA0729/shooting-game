@@ -82,8 +82,8 @@
         
         // JavaScriptファイルをキャッシュバスターで読み込み
         const script = document.createElement('script');
-        script.src = `game_deploy.js?v=${Date.now()}`;
-        script.onload = () => console.log('✅ Deploy script loaded with cache buster');
+        script.src = `game_final.js?v=${Date.now()}`;
+        script.onload = () => console.log('✅ Final script with embedded images loaded!');
         script.onerror = () => console.error('❌ Failed to load game script');
         document.head.appendChild(script);
         
