@@ -601,10 +601,12 @@
                 gameTime++;
                 
                 // Spawn enemies after 2 seconds (120 frames at 60fps)
-                enemySpawnTimer++;
-                if (gameTime >= 120 && enemySpawnTimer >= 30) {  // Spawn every ~0.5 seconds after 2 second delay
-                    spawnEnemy();
-                    enemySpawnTimer = 0;
+                if (gameTime >= 120) {
+                    enemySpawnTimer++;
+                    if (enemySpawnTimer >= 50) {  // Spawn every ~0.8 seconds
+                        spawnEnemy();
+                        enemySpawnTimer = 0;
+                    }
                 }
                 
                 // Spawn boss at score 500
